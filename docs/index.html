@@ -122,7 +122,7 @@ h1{font-size:26px;margin:4px 0 2px}
           <button id="hStt"><span class="e">🗣</span>语音转文字</button>
           <button id="hNew"><span class="e">✏️</span>写口播稿</button>
         </div>
-        <p class="note-small" style="margin:12px 2px 0">想到就开口，不用组织好语言。录音存在手机里；语音转文字免费，不用 API key。</p>
+        <p class="note-small" style="margin:12px 2px 0">想到就开口，不用组织好语言。录音存在手机里，填了 Gemini key 会自动转成文字。</p>
       </div>
       <div class="sec-h"><span>最近内容</span><a id="hAll">查看全部</a></div>
       <div id="recent"></div>
@@ -138,6 +138,7 @@ h1{font-size:26px;margin:4px 0 2px}
     <section id="v-me" class="hidden">
       <h1>设置</h1>
       <div class="card">
+        <div class="row"><span>界面语言 Language</span><select id="sUi"><option value="zh">中文</option><option value="en">English</option></select></div>
         <div class="row"><span>默认字号</span><input type="number" id="sFont" min="16" max="120" style="width:80px"></div>
         <div class="row"><span>默认滚动速度</span><input type="number" id="sSpeed" min="1" max="200" style="width:80px"></div>
         <div class="row"><span>录像前倒数</span><select id="sCount"><option value="0">不倒数</option><option value="3">3 秒</option><option value="5">5 秒</option></select></div>
@@ -146,6 +147,14 @@ h1{font-size:26px;margin:4px 0 2px}
         <div class="row"><span>语音转文字语言</span><select id="sLang">
           <option value="zh-CN">中文（普通话）</option><option value="yue-Hant-HK">粤语</option>
           <option value="en-US">English</option><option value="ms-MY">Bahasa Melayu</option></select></div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:6px">✨ AI（Gemini）</div>
+        <p class="note-small">录音转文字（华语、英文、马来语混着讲也可以）+ 整理成口播稿。key 只存在这台手机。</p>
+        <div class="row"><span>API key</span><input type="password" id="sKey" placeholder="AIza…" style="flex:1;max-width:60%;border:1px solid var(--line);border-radius:8px;padding:6px 8px"></div>
+        <div class="row"><span>模型</span><input id="sModel" style="width:60%;border:1px solid var(--line);border-radius:8px;padding:6px 8px"></div>
+        <div class="row"><span>录完自动转文字</span><input type="checkbox" id="sAuto" style="width:22px;height:22px"></div>
+        <div class="row"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--blue)">👉 免费申请 Gemini API key</a><button class="btn ghost" id="sTest">测试</button></div>
       </div>
       <div class="card">
         <div style="font-weight:700;margin-bottom:6px">备份</div>
@@ -182,6 +191,7 @@ h1{font-size:26px;margin:4px 0 2px}
     <div class="stat" id="edStat"></div>
     <textarea id="edBody" placeholder="写下要讲的内容…&#10;&#10;小技巧：先录音或语音转文字，再改成自己的说话习惯。"></textarea>
     <div class="audios" id="edAudios"></div>
+    <button class="btn" id="edAi" style="width:100%;margin:10px 0 20px;background:linear-gradient(90deg,#3B5BDB,#7048E8)">✨ AI 整理成口播稿</button>
   </div>
   <div class="actbar">
     <button id="edRec"><span class="e">🎙</span>补录音</button>
@@ -264,9 +274,24 @@ h1{font-size:26px;margin:4px 0 2px}
   // ---------- storage ----------
   function load(k, d){ try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(_){ return d; } }
   var notes = load("pc_notes", []);
-  var S = Object.assign({font:40, speed:40, count:3, qual:"1080", orient:"portrait", lang:"zh-CN", flip:false, voice:false, boxH:0.42, facing:"user"}, load("pc_settings", {}));
+  var S = Object.assign({font:40, speed:40, count:3, qual:"1080", orient:"portrait", lang:"zh-CN", flip:false, voice:false, ui:"", gkey:"", gmodel:"gemini-flash-latest", autoTx:true, boxH:0.42, facing:"user"}, load("pc_settings", {}));
   function saveNotes(){ localStorage.setItem("pc_notes", JSON.stringify(notes)); }
   function saveS(){ localStorage.setItem("pc_settings", JSON.stringify(S)); }
+
+  // ---------- language ----------
+  if(!S.ui) S.ui = (navigator.language||"").toLowerCase().indexOf("zh")===0 ? "zh" : "en";
+  var EN = {"今天想说点什么？": "What do you want to say today?", "开口录音": "Record voice", "语音转文字": "Speech to text", "写口播稿": "Write script", "想到就开口，不用组织好语言。录音存在手机里，填了 Gemini key 会自动转成文字。": "Just start talking — no need to be polished. Recordings stay on your phone; with a Gemini key they're turned into text automatically.", "最近内容": "Recent", "查看全部": "See all", "笔记": "Notes", "🔍 搜索标题、正文或标签": "🔍 Search title, text or tags", "设置": "Settings", "界面语言 Language": "Language 界面语言", "默认字号": "Default font size", "默认滚动速度": "Default scroll speed", "录像前倒数": "Countdown before recording", "不倒数": "None", "3 秒": "3 s", "5 秒": "5 s", "录像画质": "Video quality", "录像方向": "Video orientation", "竖屏 9:16（Shorts）": "Portrait 9:16 (Shorts)", "横屏 16:9（YouTube）": "Landscape 16:9 (YouTube)", "语音转文字语言": "Speech-to-text language", "中文（普通话）": "Chinese (Mandarin)", "粤语": "Cantonese", "✨ AI（Gemini）": "✨ AI (Gemini)", "录音转文字（华语、英文、马来语混着讲也可以）+ 整理成口播稿。key 只存在这台手机。": "Recording → text (mixed Mandarin / English / Malay is fine) + turn notes into a script. Your key stays on this phone.", "模型": "Model", "录完自动转文字": "Auto-transcribe after recording", "👉 免费申请 Gemini API key": "👉 Get a free Gemini API key", "测试": "Test", "备份": "Backup", "导出备份": "Export", "导入备份": "Import", "备份只含文字笔记（录音太大不放进去）。录好的视频在手机相册「Movies/PromptCue」。": "Backup contains text notes only (recordings are too big). Recorded videos are in your gallery under Movies/PromptCue.", "口播提词 PromptCue · 数据只存在这台手机": "PromptCue · your data stays on this phone", "记录": "Record", "标题": "Title", "#标签  用空格分开": "#tags  separated by spaces", "写下要讲的内容…\n\n小技巧：先录音或语音转文字，再改成自己的说话习惯。": "Write what you want to say…\n\nTip: record or dictate first, then edit it into your own way of talking.", "✨ AI 整理成口播稿": "✨ AI: turn into script", "补录音": "Add audio", "语音补充": "Dictate", "悬浮提词": "Float", "开始提词": "Prompt", "● 正在录音": "● Recording", "⏸ 暂停": "⏸ Pause", "▶ 继续": "▶ Resume", "Ⅱ 已暂停": "Ⅱ Paused", "■ 结束并保存": "■ Stop & save", "取消": "Cancel", "● 正在听… 说完按完成": "● Listening… tap Done when finished", "✓ 完成": "✓ Done", "相机未开启 · 只提词模式": "Camera off · prompt only", "🎤 跟声音": "🎤 Voice", "镜像字": "Mirror", "═ 拖动调整高度 ═": "═ drag to resize ═", "字号": "Size", "速度": "Speed", "回开头": "Top", "提词": "Play", "暂停": "Pause", "悬浮": "Float", "相机": "Camera", "口播稿": "Script", "素材": "Material", "灵感": "Idea", "工具": "Tool", "全部": "All", "⭐ 收藏": "⭐ Starred", "(无标题)": "(untitled)", "昨天": "Yesterday", "还没有内容。按上面的「开口录音」开始第一条吧。": "Nothing yet. Tap “Record voice” above to start.", "没有符合的笔记": "No matching notes", "录音": "Recording", "已转文字": "transcribed", "转文字": "Transcribe", "语音笔记": "Voice note", "开始说吧…": "Start talking…", "✅ 已存到相册：": "✅ Saved to gallery: ", "这台手机不支持录像：": "Recording not supported: ", "已存到 Download：": "Saved to Download: ", "导入完成：": "Imported: ", "删除这段录音？": "Delete this recording?", "删除这条笔记？": "Delete this note?", "正在录像，结束并保存？": "Recording — stop and save?", "找不到这段录音": "Recording not found", "无法播放": "Can't play", "此设备不支持录音": "Recording not supported on this device", "需要麦克风权限": "Microphone permission needed", "录音已保存": "Recording saved", "保存录音失败": "Failed to save recording", "已加入笔记": "Added to note", "这个浏览器不支持语音转文字，请用手机 Chrome 或安装 App 版": "This browser can't do speech-to-text. Use Chrome on your phone or the app.", "悬浮提词只在 Android App 版可用": "Floating prompter only works in the Android app", "稿子是空的": "The script is empty", "请允许「显示在其他应用上层」，然后再按一次": "Allow “Display over other apps”, then tap again", "悬浮提词已开启，正在打开相机…": "Floating prompter on — opening camera…", "相机没开，只提词模式": "Camera off — prompt only", "录像中不能切换": "Can't switch while recording", "先开相机才能录像": "Turn on the camera to record", "无法建立视频文件": "Couldn't create video file", "✅ 视频已下载": "✅ Video downloaded", "保存失败": "Save failed", "导出失败": "Export failed", "文件格式不对": "Wrong file format", "跟声音：你说话才滚，停下就停": "Voice mode: scrolls only while you speak", "已关闭跟声音，按固定速度滚": "Voice mode off — fixed speed", "先填 API key": "Enter an API key first", "测试中…": "Testing…", "✅ Gemini 连接成功": "✅ Gemini connected", "AI 没有回应": "AI returned nothing", "网络连不上": "Network error", "先在设置填 Gemini API key": "Add a Gemini API key in Settings first", "✨ 转文字中…": "✨ Transcribing…", "✅ 已转成文字": "✅ Transcribed", "先录音或写一些内容": "Record or write something first", "✨ AI 整理中…": "✨ AI working…", "✅ 口播稿已生成": "✅ Script created", "语音转文字 ": "Speech to text "};
+  function T(z){ return S.ui==="en" && EN[z] != null ? EN[z] : z; }
+  function translateDom(){
+    if(S.ui!=="en") return;
+    document.documentElement.lang = "en";
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    var n; while((n = w.nextNode())){
+      var t = n.nodeValue.trim(); if(t && EN[t] != null) n.nodeValue = n.nodeValue.replace(t, EN[t]);
+    }
+    document.querySelectorAll("[placeholder]").forEach(function(el){ var t = el.getAttribute("placeholder"); if(EN[t] != null) el.setAttribute("placeholder", EN[t]); });
+    document.title = "PromptCue";
+  }
 
   var dbp = null;
   function db(){
@@ -298,11 +323,11 @@ h1{font-size:26px;margin:4px 0 2px}
     var d = new Date(t), now = new Date();
     if(d.toDateString() === now.toDateString()) return pad(d.getHours()) + ":" + pad(d.getMinutes());
     var y = new Date(now); y.setDate(now.getDate()-1);
-    if(d.toDateString() === y.toDateString()) return "昨天";
-    return (d.getMonth()+1) + "月" + d.getDate() + "日";
+    if(d.toDateString() === y.toDateString()) return T("昨天");
+    return S.ui==="en" ? d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : (d.getMonth()+1) + "月" + d.getDate() + "日";
   }
   var toastT = null;
-  function toast(m){ var t = $("toast"); t.textContent = m; t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(function(){ t.style.opacity = 0; }, 2400); }
+  function toast(m){ var t = $("toast"); t.textContent = T(m); t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(function(){ t.style.opacity = 0; }, 2400); }
   function speakSecs(text){
     var cjk = (text.match(/[㐀-鿿]/g) || []).length;
     var words = (text.replace(/[㐀-鿿]/g, " ").match(/[A-Za-z0-9']+/g) || []).length;
@@ -313,7 +338,7 @@ h1{font-size:26px;margin:4px 0 2px}
     var n = {id:uid(), title:"", body:"", cat:c||"idea", tags:[], star:false, created:Date.now(), updated:Date.now(), audios:[]};
     notes.unshift(n); saveNotes(); return n;
   }
-  function autoTitle(prefix){ var d = new Date(); return prefix + " " + (d.getMonth()+1) + "/" + d.getDate() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function autoTitle(prefix){ var d = new Date(); return T(prefix) + " " + (d.getMonth()+1) + "/" + d.getDate() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
 
   // ---------- tabs ----------
   var tab = "home";
@@ -329,25 +354,25 @@ h1{font-size:26px;margin:4px 0 2px}
   function itemHTML(n){
     var c = cat(n.cat);
     var tags = (n.tags||[]).map(function(t){ return '<span class="tag">#'+esc(t)+'</span>'; }).join("");
-    return '<div class="item" data-id="'+n.id+'"><div class="t"><span class="dot" style="background:'+c.c+'"></span>'+(n.star?"⭐ ":"")+esc(n.title||"(无标题)")+'</div>'+
+    return '<div class="item" data-id="'+n.id+'"><div class="t"><span class="dot" style="background:'+c.c+'"></span>'+(n.star?"⭐ ":"")+esc(n.title||T("(无标题)"))+'</div>'+
       '<div class="s">'+esc((n.body||"").slice(0,160))+'</div>'+
-      '<div class="m"><span class="catlbl" style="color:'+c.c+'">'+c.n+'</span>'+tags+(n.audios&&n.audios.length?'<span>🎙'+n.audios.length+'</span>':'')+'<span style="margin-left:auto">'+when(n.updated)+'</span></div></div>';
+      '<div class="m"><span class="catlbl" style="color:'+c.c+'">'+T(c.n)+'</span>'+tags+(n.audios&&n.audios.length?'<span>🎙'+n.audios.length+'</span>':'')+'<span style="margin-left:auto">'+when(n.updated)+'</span></div></div>';
   }
   function bindItems(box){ box.querySelectorAll(".item").forEach(function(el){ el.onclick = function(){ openEditor(el.dataset.id); }; }); }
 
   var filter = "all";
   function render(){
     var d = new Date(); var wk = "日一二三四五六";
-    $("today").textContent = (d.getMonth()+1) + "月" + d.getDate() + "日 星期" + wk[d.getDay()];
+    $("today").textContent = S.ui==="en" ? d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"}) : (d.getMonth()+1) + "月" + d.getDate() + "日 星期" + wk[d.getDay()];
     notes.sort(function(a,b){ return b.updated - a.updated; });
     if(tab==="home"){
       var r = notes.slice(0,6);
-      $("recent").innerHTML = r.length ? r.map(itemHTML).join("") : '<div class="empty">还没有内容。按上面的「开口录音」开始第一条吧。</div>';
+      $("recent").innerHTML = r.length ? r.map(itemHTML).join("") : '<div class="empty">'+T("还没有内容。按上面的「开口录音」开始第一条吧。")+'</div>';
       bindItems($("recent"));
     }
     if(tab==="notes"){
       var chips = [{k:"all",n:"全部"},{k:"star",n:"⭐ 收藏"}].concat(CATS);
-      $("chips").innerHTML = chips.map(function(c){ return '<button class="chip'+(filter===c.k?" on":"")+'" data-k="'+c.k+'">'+c.n+'</button>'; }).join("");
+      $("chips").innerHTML = chips.map(function(c){ return '<button class="chip'+(filter===c.k?" on":"")+'" data-k="'+c.k+'">'+T(c.n)+'</button>'; }).join("");
       $("chips").querySelectorAll(".chip").forEach(function(b){ b.onclick = function(){ filter = b.dataset.k; render(); }; });
       var q = $("q").value.trim().toLowerCase();
       var L = notes.filter(function(n){
@@ -356,16 +381,27 @@ h1{font-size:26px;margin:4px 0 2px}
         if(q && (n.title+" "+n.body+" "+(n.tags||[]).join(" ")).toLowerCase().indexOf(q.replace(/^#/,""))<0) return false;
         return true;
       });
-      $("list").innerHTML = L.length ? L.map(itemHTML).join("") : '<div class="empty">没有符合的笔记</div>';
+      $("list").innerHTML = L.length ? L.map(itemHTML).join("") : '<div class="empty">'+T("没有符合的笔记")+'</div>';
       bindItems($("list"));
     }
     if(tab==="me"){
       $("sFont").value = S.font; $("sSpeed").value = S.speed; $("sCount").value = S.count; $("sQual").value = S.qual; $("sLang").value = S.lang; $("sOrient").value = S.orient;
       var ac = 0; notes.forEach(function(n){ ac += (n.audios||[]).length; });
-      $("stats").textContent = notes.length + " 条笔记 · " + ac + " 段录音";
+      $("stats").textContent = S.ui==="en" ? notes.length + " notes · " + ac + " recordings" : notes.length + " 条笔记 · " + ac + " 段录音";
+      $("sUi").value = S.ui; $("sKey").value = S.gkey; $("sModel").value = S.gmodel; $("sAuto").checked = !!S.autoTx;
     }
   }
   $("q").oninput = render;
+  $("sUi").onchange = function(){ S.ui = this.value; saveS(); location.reload(); };
+  $("sKey").onchange = function(){ S.gkey = this.value.trim(); saveS(); };
+  $("sModel").onchange = function(){ S.gmodel = this.value.trim() || "gemini-flash-latest"; saveS(); };
+  $("sAuto").onchange = function(){ S.autoTx = this.checked; saveS(); };
+  $("sTest").onclick = function(){
+    S.gkey = $("sKey").value.trim(); S.gmodel = $("sModel").value.trim() || "gemini-flash-latest"; saveS();
+    if(!S.gkey){ toast("先填 API key"); return; }
+    toast("测试中…");
+    gemini([{text:"Reply with exactly: OK"}]).then(function(){ toast("✅ Gemini 连接成功"); }).catch(function(e){ toast("❌ " + e.message); });
+  };
   ["sFont","sSpeed","sCount","sQual","sLang","sOrient"].forEach(function(id){
     $(id).onchange = function(){
       var key = {sFont:"font",sSpeed:"speed",sCount:"count",sQual:"qual",sLang:"lang",sOrient:"orient"}[id];
@@ -381,27 +417,34 @@ h1{font-size:26px;margin:4px 0 2px}
     $("editor").classList.remove("hidden");
     $("edTitle").value = cur.title; $("edBody").value = cur.body; $("edTags").value = (cur.tags||[]).map(function(t){return "#"+t;}).join(" ");
     $("edFloat").classList.toggle("hidden", !isApp);
+    $("edAi").classList.toggle("hidden", !S.gkey);
     document.querySelector(".actbar").style.gridTemplateColumns = isApp ? "repeat(4,1fr)" : "repeat(3,1fr)";
     renderEd(); grow();
   }
   function renderEd(){
     if(!cur) return;
     $("edStar").textContent = cur.star ? "⭐" : "☆";
-    $("edHead").textContent = cat(cur.cat).n;
-    $("edCats").innerHTML = CATS.map(function(c){ return '<button class="chip'+(cur.cat===c.k?" on":"")+'" data-k="'+c.k+'">'+c.n+'</button>'; }).join("");
+    $("edHead").textContent = T(cat(cur.cat).n);
+    $("edCats").innerHTML = CATS.map(function(c){ return '<button class="chip'+(cur.cat===c.k?" on":"")+'" data-k="'+c.k+'">'+T(c.n)+'</button>'; }).join("");
     $("edCats").querySelectorAll(".chip").forEach(function(b){ b.onclick = function(){ cur.cat = b.dataset.k; touch(); renderEd(); }; });
     var t = cur.body || ""; var secs = speakSecs(t);
-    $("edStat").textContent = t.replace(/\s/g,"").length + " 字 · 约讲 " + (secs<60 ? Math.round(secs)+" 秒" : (secs/60).toFixed(1)+" 分钟");
+    $("edStat").textContent = statText(t, secs);
     $("edAudios").innerHTML = (cur.audios||[]).map(function(a){
-      return '<div class="a" data-id="'+a.id+'"><button class="iconbtn play">▶</button><div class="grow">🎙 录音 '+mmss(a.dur)+'<div class="note-small">'+when(a.created)+'</div></div><button class="iconbtn del">🗑</button></div>';
+      return '<div class="a" data-id="'+a.id+'"><button class="iconbtn play">▶</button><div class="grow">🎙 '+T("录音")+' '+mmss(a.dur)+'<div class="note-small">'+when(a.created)+(a.tx?' · ✓ '+T("已转文字"):'')+'</div></div>'+(S.gkey?'<button class="btn ghost tx" style="padding:6px 10px;font-size:12px">✨ '+T("转文字")+'</button>':'')+'<button class="iconbtn del">🗑</button></div>';
     }).join("");
     $("edAudios").querySelectorAll(".a").forEach(function(el){
       el.querySelector(".play").onclick = function(){ playClip(el.dataset.id, el.querySelector(".play")); };
+      var txb = el.querySelector(".tx"); if(txb) txb.onclick = function(){ transcribe(cur.id, el.dataset.id, txb); };
       el.querySelector(".del").onclick = function(){
-        if(!confirm("删除这段录音？")) return;
+        if(!confirm(T("删除这段录音？"))) return;
         delClip(el.dataset.id); cur.audios = cur.audios.filter(function(a){ return a.id!==el.dataset.id; }); touch(); renderEd();
       };
     });
+  }
+  function statText(t, secs){
+    var n = t.replace(/\s/g,"").length;
+    if(S.ui==="en") return n + " chars · ~" + (secs<60 ? Math.round(secs)+" s" : (secs/60).toFixed(1)+" min") + " to speak";
+    return n + " 字 · 约讲 " + (secs<60 ? Math.round(secs)+" 秒" : (secs/60).toFixed(1)+" 分钟");
   }
   function touch(){ if(cur){ cur.updated = Date.now(); saveNotes(); } }
   function grow(){ var b = $("edBody"); b.style.height = "auto"; b.style.height = Math.max(b.scrollHeight, window.innerHeight*0.4) + "px"; }
@@ -411,7 +454,7 @@ h1{font-size:26px;margin:4px 0 2px}
     cur.tags = $("edTags").value.split(/[\s,，]+/).map(function(t){ return t.replace(/^#/,""); }).filter(Boolean);
     clearTimeout(edTimer); edTimer = setTimeout(function(){ touch(); }, 300);
     var t = cur.body; var secs = speakSecs(t);
-    $("edStat").textContent = t.replace(/\s/g,"").length + " 字 · 约讲 " + (secs<60 ? Math.round(secs)+" 秒" : (secs/60).toFixed(1)+" 分钟");
+    $("edStat").textContent = statText(t, secs);
   }
   $("edTitle").oninput = edInput; $("edTags").oninput = edInput;
   $("edBody").oninput = function(){ edInput(); grow(); };
@@ -424,7 +467,7 @@ h1{font-size:26px;margin:4px 0 2px}
   $("edBack").onclick = closeEditor;
   $("edStar").onclick = function(){ cur.star = !cur.star; touch(); renderEd(); };
   $("edDel").onclick = function(){
-    if(!confirm("删除这条笔记？")) return;
+    if(!confirm(T("删除这条笔记？"))) return;
     (cur.audios||[]).forEach(function(a){ delClip(a.id); });
     notes = notes.filter(function(n){ return n!==cur; }); saveNotes(); cur = null; $("editor").classList.add("hidden"); render();
   };
@@ -462,7 +505,7 @@ h1{font-size:26px;margin:4px 0 2px}
       rec = {mr:mr, stream:stream, chunks:chunks, target:target, start:Date.now(), acc:0, paused:false, cancel:false};
       mr.onstop = finishAudio;
       mr.start(1000);
-      $("recModal").classList.remove("hidden"); $("recPause").textContent = "⏸ 暂停"; $("recState").textContent = "● 正在录音";
+      $("recModal").classList.remove("hidden"); $("recPause").textContent = T("⏸ 暂停"); $("recState").textContent = T("● 正在录音");
       keepOn(true);
       // waveform
       try{
@@ -484,8 +527,8 @@ h1{font-size:26px;margin:4px 0 2px}
   function recSecs(){ if(!rec) return 0; return (rec.acc + (rec.paused ? 0 : Date.now()-rec.start))/1000; }
   $("recPause").onclick = function(){
     if(!rec) return;
-    if(!rec.paused){ rec.mr.pause(); rec.acc += Date.now()-rec.start; rec.paused = true; this.textContent = "▶ 继续"; $("recState").textContent = "Ⅱ 已暂停"; }
-    else { rec.mr.resume(); rec.start = Date.now(); rec.paused = false; this.textContent = "⏸ 暂停"; $("recState").textContent = "● 正在录音"; }
+    if(!rec.paused){ rec.mr.pause(); rec.acc += Date.now()-rec.start; rec.paused = true; this.textContent = T("▶ 继续"); $("recState").textContent = T("Ⅱ 已暂停"); }
+    else { rec.mr.resume(); rec.start = Date.now(); rec.paused = false; this.textContent = T("⏸ 暂停"); $("recState").textContent = T("● 正在录音"); }
   };
   $("recStop").onclick = function(){ if(rec){ rec.dur = recSecs(); rec.mr.stop(); } };
   $("recCancel").onclick = function(){ if(rec){ rec.cancel = true; rec.mr.stop(); } };
@@ -504,6 +547,7 @@ h1{font-size:26px;margin:4px 0 2px}
       toast("录音已保存");
       if(cur && cur.id===n.id) renderEd(); else openEditor(n.id);
       render();
+      if(S.gkey && S.autoTx) transcribe(n.id, id, null);
     }).catch(function(){ toast("保存录音失败"); });
   }
 
@@ -534,7 +578,7 @@ h1{font-size:26px;margin:4px 0 2px}
     };
     sr.onerror = function(e){ if(e.error==="not-allowed") toast("需要麦克风权限"); };
     sr.onend = function(){ if(sr && !sr._stop){ try{ sr.start(); }catch(_){} } };
-    $("sttText").innerHTML = "<i>开始说吧…</i>"; $("sttModal").classList.remove("hidden");
+    $("sttText").innerHTML = "<i>" + T("开始说吧…") + "</i>"; $("sttModal").classList.remove("hidden");
     try{ sr.start(); }catch(_){}
   }
   function endStt(save){
@@ -545,6 +589,63 @@ h1{font-size:26px;margin:4px 0 2px}
   }
   $("sttDone").onclick = function(){ endStt(true); };
   $("sttCancel").onclick = function(){ endStt(false); };
+
+  // ---------- Gemini AI (optional, user's own key) ----------
+  function gemini(parts){
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(S.gmodel || "gemini-flash-latest") + ":generateContent";
+    return fetch(url, {method:"POST", headers:{"Content-Type":"application/json", "x-goog-api-key":S.gkey},
+      body: JSON.stringify({contents:[{role:"user", parts:parts}], generationConfig:{temperature:0.2}})})
+      .then(function(r){ return r.json().then(function(j){
+        if(!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+        var c = j.candidates && j.candidates[0];
+        var out = c && c.content && c.content.parts ? c.content.parts.map(function(x){ return x.text || ""; }).join("") : "";
+        if(!out.trim()) throw new Error(T("AI 没有回应"));
+        return out.trim();
+      }); }, function(){ throw new Error(T("网络连不上")); });
+  }
+  var TX_PROMPT = "Transcribe this audio exactly as spoken. The speaker is Malaysian and often mixes Mandarin Chinese, English and Malay (and some Cantonese/Hokkien words) in one sentence. " +
+    "Keep every word in the language it was spoken in. Do NOT translate. Write Chinese in simplified characters, English and Malay in normal Latin spelling. " +
+    "Add natural punctuation and paragraph breaks. Remove only filler sounds (呃, 嗯, uh, um). Output only the transcript, nothing else.";
+  var busy = {};
+  function transcribe(noteId, clipId, btn){
+    if(!S.gkey){ toast("先在设置填 Gemini API key"); return; }
+    if(busy[clipId]) return; busy[clipId] = true;
+    if(btn){ btn.disabled = true; btn.textContent = "⏳"; }
+    toast("✨ 转文字中…");
+    getClip(clipId).then(function(blob){
+      if(!blob) throw new Error(T("找不到这段录音"));
+      return blobB64(blob).then(function(b64){
+        return gemini([{text:TX_PROMPT}, {inline_data:{mime_type:(blob.type||"audio/webm").split(";")[0], data:b64}}]);
+      });
+    }).then(function(text){
+      var n = findNote(noteId); if(!n) return;
+      n.body = n.body ? n.body.replace(/\s*$/,"") + "\n\n" + text : text;
+      (n.audios||[]).forEach(function(a){ if(a.id===clipId) a.tx = true; });
+      n.updated = Date.now(); saveNotes();
+      if(cur && cur.id===n.id){ $("edBody").value = n.body; grow(); renderEd(); }
+      render(); toast("✅ 已转成文字");
+    }).catch(function(e){ toast("❌ " + e.message); if(btn){ btn.disabled = false; btn.textContent = "✨ " + T("转文字"); } })
+      .then(function(){ busy[clipId] = false; });
+  }
+  var SCRIPT_PROMPT = "You are helping a Malaysian YouTuber turn rough spoken notes into a talking-head video script that they will read from a teleprompter.\n" +
+    "Rules: keep the speaker's own voice and their natural language mix (Mandarin / English / Malay as they used it; do not translate everything into one language). " +
+    "Make it sound like natural speech: short sentences, easy to read aloud. Structure: a strong 1-2 sentence hook, then the main points in a clear order, then a short ending / call to action. " +
+    "Do not invent facts that are not in the notes. No headings, no bullet symbols, no stage directions, no emojis. Blank line between paragraphs.\n" +
+    "Output format: first line = a short catchy title; then a blank line; then the script.\n\nNOTES:\n";
+  $("edAi").onclick = function(){
+    edInput();
+    var src = (cur.title ? cur.title + "\n" : "") + (cur.body || "");
+    if(!src.trim()){ toast("先录音或写一些内容"); return; }
+    var btn = this, label = btn.textContent; btn.disabled = true; btn.textContent = T("✨ AI 整理中…");
+    var from = cur;
+    gemini([{text: SCRIPT_PROMPT + src}]).then(function(out){
+      var lines = out.replace(/^\s+/,"").split("\n");
+      var title = lines.shift().replace(/^[#*\s]+|[*\s]+$/g,"");
+      var n = newNote("script"); n.title = title; n.body = lines.join("\n").trim(); n.tags = (from.tags||[]).slice();
+      saveNotes(); toast("✅ 口播稿已生成"); openEditor(n.id);
+    }).catch(function(e){ toast("❌ " + e.message); })
+      .then(function(){ btn.disabled = false; btn.textContent = label; });
+  };
 
   // ---------- floating prompter (Android app only) ----------
   function startFloat(text){
@@ -576,11 +677,11 @@ h1{font-size:26px;margin:4px 0 2px}
   }
   function applyP(){
     $("pinner").style.fontSize = S.font + "px";
-    $("fVal").textContent = "字号 " + S.font; $("sVal").textContent = "速度 " + S.speed;
+    $("fVal").textContent = T("字号") + " " + S.font; $("sVal").textContent = T("速度") + " " + S.speed;
     var box = $("pbox"); box.style.height = Math.round(window.innerHeight * S.boxH) + "px";
     box.classList.toggle("flip", !!S.flip);
     $("pinner").style.transform = "translateY(" + (-P.off) + "px)" + (S.flip ? " scaleX(-1)" : "");
-    $("pPlay").innerHTML = (P.playing ? "⏸" : "▶") + "<small>" + (P.playing ? "暂停" : "提词") + "</small>";
+    $("pPlay").innerHTML = (P.playing ? "⏸" : "▶") + "<small>" + T(P.playing ? "暂停" : "提词") + "</small>";
     $("pFlip").style.background = S.flip ? "#3B5BDB" : "";
     $("pVoice").style.background = S.voice ? "#2B8A3E" : "";
     $("vmeter").classList.toggle("hidden", !S.voice);
@@ -642,7 +743,7 @@ h1{font-size:26px;margin:4px 0 2px}
   }
   function stopCam(){ stopListen(); if(P.stream){ P.stream.getTracks().forEach(function(t){ t.stop(); }); P.stream = null; } $("cam").srcObject = null; }
   function closePrompter(){
-    if(P.mr){ if(!confirm("正在录像，结束并保存？")) return; stopRec(); }
+    if(P.mr){ if(!confirm(T("正在录像，结束并保存？"))) return; stopRec(); }
     P.playing = false; cancelAnimationFrame(P.raf); stopCam(); keepOn(false);
     $("prompter").classList.add("hidden");
   }
@@ -695,7 +796,7 @@ h1{font-size:26px;margin:4px 0 2px}
     var opts = {videoBitsPerSecond: S.qual==="720" ? 5000000 : 10000000};
     if(mime) opts.mimeType = mime;
     var mr;
-    try{ mr = new MediaRecorder(P.stream, opts); }catch(e){ toast("这台手机不支持录像：" + e.message); return; }
+    try{ mr = new MediaRecorder(P.stream, opts); }catch(e){ toast(T("这台手机不支持录像：") + e.message); return; }
     var type = (mr.mimeType || mime || "video/webm").split(";")[0];
     var ext = type.indexOf("mp4")>=0 ? "mp4" : "webm";
     var native = isApp && A.videoBegin;
@@ -707,7 +808,7 @@ h1{font-size:26px;margin:4px 0 2px}
       else chunks.push(e.data);
     };
     mr.onstop = function(){
-      if(native){ q.then(function(){ var name = A.videoEnd(); toast(name ? "✅ 已存到相册：" + name : "保存失败"); }); }
+      if(native){ q.then(function(){ var name = A.videoEnd(); toast(name ? T("✅ 已存到相册：") + name : "保存失败"); }); }
       else {
         var blob = new Blob(chunks, {type:type}); var a = document.createElement("a");
         var d = new Date(); a.href = URL.createObjectURL(blob);
@@ -733,7 +834,7 @@ h1{font-size:26px;margin:4px 0 2px}
   $("exp").onclick = function(){
     var data = JSON.stringify({app:"PromptCue", v:1, at:Date.now(), notes:notes.map(function(n){ var c = Object.assign({}, n); c.audios = []; return c; })}, null, 1);
     var d = new Date(); var name = "PromptCue_backup_" + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + ".json";
-    if(isApp && A.saveText){ var r = A.saveText(name, data); toast(r ? "已存到 Download：" + name : "导出失败"); return; }
+    if(isApp && A.saveText){ var r = A.saveText(name, data); toast(r ? T("已存到 Download：") + name : "导出失败"); return; }
     var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], {type:"application/json"})); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   };
   $("imp").onclick = function(){ $("impFile").click(); };
@@ -746,7 +847,7 @@ h1{font-size:26px;margin:4px 0 2px}
         var have = {}; notes.forEach(function(n){ have[n.id] = n; });
         var add = 0;
         L.forEach(function(n){ if(!n.id) return; var o = have[n.id]; if(!o){ n.audios = []; notes.push(n); add++; } else if(n.updated > o.updated){ var au = o.audios; Object.assign(o, n); o.audios = au; add++; } });
-        saveNotes(); render(); toast("导入完成：" + add + " 条");
+        saveNotes(); render(); toast(T("导入完成：") + add);
       }catch(_){ toast("文件格式不对"); }
     };
     fr.readAsText(f); this.value = "";
@@ -764,6 +865,7 @@ h1{font-size:26px;margin:4px 0 2px}
   };
   document.addEventListener("visibilitychange", function(){ if(document.hidden && cur){ edInput(); touch(); } });
 
+  translateDom();
   render();
 })();
 </script>
