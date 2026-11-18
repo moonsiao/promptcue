@@ -91,6 +91,7 @@ h1{font-size:26px;margin:4px 0 2px}
 #pbox{position:absolute;left:10px;right:10px;top:64px;border-radius:16px;background:rgba(0,0,0,.45);overflow:hidden;z-index:2}
 #pinner{padding:12px 16px 60vh;line-height:1.5;font-weight:600;white-space:pre-wrap;word-break:break-word;will-change:transform;text-shadow:0 1px 3px #000}
 #pbox.flip #pinner{transform-origin:center}
+#vmeter{position:absolute;top:0;left:0;height:3px;background:#3ddc84;width:0;transition:width .08s;z-index:3}
 #pline{position:absolute;left:0;right:0;height:2px;background:#ff5a4a99;top:30%;pointer-events:none}
 #pbox .resize{position:absolute;left:0;right:0;bottom:0;height:22px;display:flex;align-items:center;justify-content:center;background:linear-gradient(transparent,#0008);font-size:12px;color:#fffa}
 #pbot{position:absolute;left:0;right:0;bottom:0;padding:10px 12px calc(14px + env(safe-area-inset-bottom));z-index:3;background:linear-gradient(transparent,#000a)}
@@ -223,11 +224,12 @@ h1{font-size:26px;margin:4px 0 2px}
   <div id="ptop">
     <button class="iconbtn" id="pClose">✕</button>
     <div class="grow"></div>
+    <button class="pill" id="pVoice">🎤 跟声音</button>
     <button class="pill" id="pFlip">镜像字</button>
     <button class="iconbtn" id="pSwitch">🔄</button>
   </div>
   <div id="recInfo" class="hidden">● 00:00</div>
-  <div id="pbox"><div id="pinner"></div><div id="pline"></div><div class="resize" id="pResize">═ 拖动调整高度 ═</div></div>
+  <div id="pbox"><div id="vmeter" class="hidden"></div><div id="pinner"></div><div id="pline"></div><div class="resize" id="pResize">═ 拖动调整高度 ═</div></div>
   <div id="countdown" class="hidden"></div>
   <div id="pbot">
     <div class="adj">
@@ -262,7 +264,7 @@ h1{font-size:26px;margin:4px 0 2px}
   // ---------- storage ----------
   function load(k, d){ try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(_){ return d; } }
   var notes = load("pc_notes", []);
-  var S = Object.assign({font:40, speed:40, count:3, qual:"1080", orient:"portrait", lang:"zh-CN", flip:false, boxH:0.42, facing:"user"}, load("pc_settings", {}));
+  var S = Object.assign({font:40, speed:40, count:3, qual:"1080", orient:"portrait", lang:"zh-CN", flip:false, voice:false, boxH:0.42, facing:"user"}, load("pc_settings", {}));
   function saveNotes(){ localStorage.setItem("pc_notes", JSON.stringify(notes)); }
   function saveS(){ localStorage.setItem("pc_settings", JSON.stringify(S)); }
 
@@ -562,7 +564,7 @@ h1{font-size:26px;margin:4px 0 2px}
   }
 
   // ---------- teleprompter + camera ----------
-  var P = {note:null, off:0, playing:false, last:0, stream:null, mr:null, recStart:0, recTimer:null, raf:0};
+  var P = {note:null, off:0, playing:false, last:0, stream:null, ac:null, an:null, buf:null, noise:0.01, loudAt:0, vf:1, mr:null, recStart:0, recTimer:null, raf:0};
   function openPrompter(n){
     if(!(n.body||"").trim()){ toast("稿子是空的"); return; }
     P.note = n; P.off = 0; P.playing = false;
@@ -580,16 +582,24 @@ h1{font-size:26px;margin:4px 0 2px}
     $("pinner").style.transform = "translateY(" + (-P.off) + "px)" + (S.flip ? " scaleX(-1)" : "");
     $("pPlay").innerHTML = (P.playing ? "⏸" : "▶") + "<small>" + (P.playing ? "暂停" : "提词") + "</small>";
     $("pFlip").style.background = S.flip ? "#3B5BDB" : "";
+    $("pVoice").style.background = S.voice ? "#2B8A3E" : "";
+    $("vmeter").classList.toggle("hidden", !S.voice);
   }
   function maxOff(){ return Math.max(0, $("pinner").scrollHeight - $("pbox").clientHeight * 0.4); }
   function loop(t){
     if($("prompter").classList.contains("hidden")) return;
     if(P.playing){
       var dt = P.last ? (t - P.last)/1000 : 0;
-      P.off += dt * S.speed * 1.2;
+      var f = 1;
+      if(S.voice && P.an){
+        var talking = (performance.now() - P.loudAt) < 450;   // keep going briefly between words
+        f = P.vf += ((talking ? 1 : 0) - P.vf) * Math.min(1, dt * 8);   // smooth start/stop
+      }
+      P.off += dt * S.speed * 1.2 * f;
       if(P.off >= maxOff()){ P.off = maxOff(); P.playing = false; applyP(); }
       $("pinner").style.transform = "translateY(" + (-P.off) + "px)" + (S.flip ? " scaleX(-1)" : "");
     }
+    if(S.voice && P.an) listen();
     P.last = t; P.raf = requestAnimationFrame(loop);
   }
   function startCam(){
@@ -601,9 +611,36 @@ h1{font-size:26px;margin:4px 0 2px}
       .then(function(st){
         P.stream = st; var v = $("cam"); v.srcObject = st; v.play().catch(function(){});
         v.classList.toggle("mirror", S.facing==="user"); $("nocam").classList.add("hidden");
-      }).catch(function(){ $("nocam").classList.remove("hidden"); toast("相机/麦克风没开，只提词模式"); });
+        startListen(st);
+      }).catch(function(){
+        $("nocam").classList.remove("hidden"); toast("相机没开，只提词模式");
+        navigator.mediaDevices.getUserMedia({audio:true}).then(function(a){ P.stream = a; startListen(a); }).catch(function(){});
+      });
   }
-  function stopCam(){ if(P.stream){ P.stream.getTracks().forEach(function(t){ t.stop(); }); P.stream = null; } $("cam").srcObject = null; }
+  // ---- voice-follow: scroll only while you are speaking ----
+  function startListen(st){
+    stopListen();
+    if(!st || !st.getAudioTracks().length) return;
+    try{
+      var ac = new (window.AudioContext||window.webkitAudioContext)();
+      var an = ac.createAnalyser(); an.fftSize = 1024;
+      ac.createMediaStreamSource(st).connect(an);
+      P.ac = ac; P.an = an; P.buf = new Float32Array(an.fftSize); P.noise = 0.01; P.loudAt = 0; P.vf = 0;
+    }catch(_){}
+  }
+  function stopListen(){ try{ P.ac && P.ac.close(); }catch(_){} P.ac = null; P.an = null; }
+  function listen(){
+    P.an.getFloatTimeDomainData(P.buf);
+    var sum = 0; for(var i=0;i<P.buf.length;i++) sum += P.buf[i]*P.buf[i];
+    var rms = Math.sqrt(sum / P.buf.length);
+    // learn the room's background noise slowly; react to voice quickly
+    if(rms < P.noise) P.noise = P.noise*0.9 + rms*0.1; else P.noise = P.noise*0.999 + rms*0.001;
+    var th = Math.max(0.012, P.noise * 3);
+    if(rms > th) P.loudAt = performance.now();
+    $("vmeter").style.width = Math.min(100, rms / th * 50) + "%";
+    $("vmeter").style.background = rms > th ? "#3ddc84" : "#ffffff55";
+  }
+  function stopCam(){ stopListen(); if(P.stream){ P.stream.getTracks().forEach(function(t){ t.stop(); }); P.stream = null; } $("cam").srcObject = null; }
   function closePrompter(){
     if(P.mr){ if(!confirm("正在录像，结束并保存？")) return; stopRec(); }
     P.playing = false; cancelAnimationFrame(P.raf); stopCam(); keepOn(false);
@@ -618,7 +655,11 @@ h1{font-size:26px;margin:4px 0 2px}
   $("sPlus").onclick = function(){ S.speed = Math.min(200, S.speed+4); saveS(); applyP(); };
   $("pFlip").onclick = function(){ S.flip = !S.flip; saveS(); applyP(); };
   $("pSwitch").onclick = function(){ if(P.mr){ toast("录像中不能切换"); return; } S.facing = S.facing==="user" ? "environment" : "user"; saveS(); startCam(); };
-  $("pCam").onclick = function(){ if(P.mr) return; if(P.stream){ stopCam(); $("nocam").classList.remove("hidden"); } else startCam(); };
+  $("pCam").onclick = function(){ if(P.mr) return; if(P.stream && P.stream.getVideoTracks().length){ stopCam(); $("nocam").classList.remove("hidden"); navigator.mediaDevices.getUserMedia({audio:true}).then(function(a){ P.stream = a; startListen(a); }).catch(function(){}); } else startCam(); };
+  $("pVoice").onclick = function(){
+    S.voice = !S.voice; saveS(); applyP();
+    toast(S.voice ? "跟声音：你说话才滚，停下就停" : "已关闭跟声音，按固定速度滚");
+  };
   $("pFloat").onclick = function(){ var t = P.note.body; closePrompter(); startFloat(t); };
 
   // drag text to scroll, tap to play/pause
@@ -642,7 +683,7 @@ h1{font-size:26px;margin:4px 0 2px}
   function blobB64(b){ return new Promise(function(res){ var fr = new FileReader(); fr.onload = function(){ var s = String(fr.result); res(s.slice(s.indexOf(",")+1)); }; fr.readAsDataURL(b); }); }
   $("recBtn").onclick = function(){
     if(P.mr){ stopRec(); return; }
-    if(!P.stream){ toast("先开相机才能录像"); return; }
+    if(!P.stream || !P.stream.getVideoTracks().length){ toast("先开相机才能录像"); return; }
     if(P._counting) return;
     var n = Number(S.count)||0;
     if(!n){ beginRec(); return; }
