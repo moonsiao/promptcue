@@ -210,6 +210,25 @@ public class MainActivity extends Activity {
             return true;
         }
 
+        /** Text currently on the clipboard (to paste a script written in Claude/ChatGPT). */
+        @JavascriptInterface
+        public String paste() {
+            final String[] out = {""};
+            final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+            runOnUiThread(() -> {
+                try {
+                    android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip().getItemCount() > 0) {
+                        CharSequence t = cm.getPrimaryClip().getItemAt(0).coerceToText(MainActivity.this);
+                        if (t != null) out[0] = t.toString();
+                    }
+                } catch (Exception ignored) { }
+                done.countDown();
+            });
+            try { done.await(2, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) { }
+            return out[0];
+        }
+
         @JavascriptInterface
         public void keepOn(boolean on) {
             runOnUiThread(() -> {
