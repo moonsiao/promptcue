@@ -330,7 +330,7 @@ h1{font-size:26px;margin:4px 0 2px}
     return S.ui==="en" ? d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : (d.getMonth()+1) + "月" + d.getDate() + "日";
   }
   var toastT = null;
-  function toast(m){ var t = $("toast"); t.textContent = T(m); t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(function(){ t.style.opacity = 0; }, 2400); }
+  function toast(m){ var t = $("toast"); t.textContent = T(m); t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(function(){ t.style.opacity = 0; }, /^❌/.test(m) ? 10000 : 2400); }
   function speakSecs(text){
     var cjk = (text.match(/[㐀-鿿]/g) || []).length;
     var words = (text.replace(/[㐀-鿿]/g, " ").match(/[A-Za-z0-9']+/g) || []).length;
@@ -610,7 +610,7 @@ h1{font-size:26px;margin:4px 0 2px}
     return fetch(url, {method:"POST", headers:{"Content-Type":"application/json", "x-goog-api-key":S.gkey},
       body: JSON.stringify({contents:[{role:"user", parts:parts}], generationConfig:{temperature:0.2}})})
       .then(function(r){ return r.json().then(function(j){
-        if(!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+        if(!r.ok) throw new Error("Gemini " + r.status + ": " + ((j.error && j.error.message) || ""));
         var c = j.candidates && j.candidates[0];
         var out = c && c.content && c.content.parts ? c.content.parts.map(function(x){ return x.text || ""; }).join("") : "";
         if(!out.trim()) throw new Error(T("AI 没有回应"));
@@ -620,6 +620,45 @@ h1{font-size:26px;margin:4px 0 2px}
   var TX_PROMPT = "Transcribe this audio exactly as spoken. The speaker is Malaysian and often mixes Mandarin Chinese, English and Malay (and some Cantonese/Hokkien words) in one sentence. " +
     "Keep every word in the language it was spoken in. Do NOT translate. Write Chinese in simplified characters, English and Malay in normal Latin spelling. " +
     "Add natural punctuation and paragraph breaks. Remove only filler sounds (呃, 嗯, uh, um). Output only the transcript, nothing else.";
+  // Convert any recording to 16 kHz mono WAV, split into ~4-minute pieces (keeps each request small).
+  function wavChunks(blob){
+    return blob.arrayBuffer().then(function(ab){
+      var AC = window.AudioContext || window.webkitAudioContext; var ac = new AC();
+      return new Promise(function(res, rej){ ac.decodeAudioData(ab, res, rej); }).then(function(buf){
+        try{ ac.close(); }catch(_){}
+        var rate = 16000, len = Math.max(1, Math.ceil(buf.duration * rate));
+        var off = new OfflineAudioContext(1, len, rate); var src = off.createBufferSource();
+        src.buffer = buf; src.connect(off.destination); src.start();
+        return off.startRendering();
+      });
+    }).then(function(r){
+      var data = r.getChannelData(0), per = 16000 * 240, out = [];
+      for(var st = 0; st < data.length; st += per) out.push(wavB64(data.subarray(st, Math.min(data.length, st + per)), 16000));
+      return out;
+    });
+  }
+  function wavB64(f, rate){
+    var n = f.length, buf = new ArrayBuffer(44 + n*2), v = new DataView(buf);
+    function w(o, str){ for(var i=0;i<str.length;i++) v.setUint8(o+i, str.charCodeAt(i)); }
+    w(0,"RIFF"); v.setUint32(4, 36 + n*2, true); w(8,"WAVE"); w(12,"fmt "); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+    v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,"data"); v.setUint32(40, n*2, true);
+    for(var i=0;i<n;i++){ var x = Math.max(-1, Math.min(1, f[i])); v.setInt16(44 + i*2, x < 0 ? x*0x8000 : x*0x7fff, true); }
+    var bytes = new Uint8Array(buf), bin = "", CH = 0x8000;
+    for(var k=0;k<bytes.length;k+=CH) bin += String.fromCharCode.apply(null, bytes.subarray(k, k+CH));
+    return btoa(bin);
+  }
+  function audioToText(blob, prompt){
+    return wavChunks(blob).then(function(chunks){
+      var parts = [], q = Promise.resolve();
+      chunks.forEach(function(c, i){
+        q = q.then(function(){
+          if(chunks.length > 1) toast("✨ " + (i+1) + "/" + chunks.length);
+          return gemini([{text:prompt}, {inline_data:{mime_type:"audio/wav", data:c}}]).then(function(t){ parts.push(t); });
+        });
+      });
+      return q.then(function(){ return parts.join("\n\n"); });
+    });
+  }
   var busy = {};
   function transcribe(noteId, clipId, btn){
     if(!S.gkey){ toast("先在设置填 Gemini API key"); return; }
@@ -628,9 +667,7 @@ h1{font-size:26px;margin:4px 0 2px}
     toast("✨ 转文字中…");
     getClip(clipId).then(function(blob){
       if(!blob) throw new Error(T("找不到这段录音"));
-      return blobB64(blob).then(function(b64){
-        return gemini([{text:TX_PROMPT}, {inline_data:{mime_type:(blob.type||"audio/webm").split(";")[0], data:b64}}]);
-      });
+      return audioToText(blob, TX_PROMPT);
     }).then(function(text){
       var n = findNote(noteId); if(!n) return;
       n.body = n.body ? n.body.replace(/\s*$/,"") + "\n\n" + text : text;
@@ -883,9 +920,7 @@ h1{font-size:26px;margin:4px 0 2px}
     "Chinese in simplified characters. Short sentences, one idea per line, blank line between paragraphs. Output only the script.";
   function rehearsalToScript(note, clipId){
     var tip = $("rehTip"); tip.classList.remove("hidden"); tip.textContent = T("✨ 正在把彩排变成口播稿…");
-    getClip(clipId).then(function(blob){ return blobB64(blob).then(function(b64){
-      return gemini([{text:REH_PROMPT}, {inline_data:{mime_type:(blob.type||"audio/webm").split(";")[0], data:b64}}]);
-    }); }).then(function(text){
+    getClip(clipId).then(function(blob){ return audioToText(blob, REH_PROMPT); }).then(function(text){
       (note.audios||[]).forEach(function(a){ if(a.id===clipId) a.tx = true; });
       var n = newNote("script");
       n.title = (note.title || T("口播稿")).replace(/（彩排版）$/,"") + T("（彩排版）");
