@@ -686,6 +686,8 @@ h1{font-size:26px;margin:4px 0 2px}
     $("pinner").textContent = n.body;
     $("prompter").classList.remove("hidden");
     $("pFloat").classList.toggle("hidden", !isApp);
+    // web: go fullscreen so the browser bar doesn't show under the teleprompter glass
+    if(!isApp && document.documentElement.requestFullscreen && !document.fullscreenElement){ document.documentElement.requestFullscreen().catch(function(){}); }
     applyP(); startCam(); keepOn(true);
     P.raf = requestAnimationFrame(loop);
   }
@@ -766,6 +768,7 @@ h1{font-size:26px;margin:4px 0 2px}
     if(P.mr){ if(!confirm(T("正在录像，结束并保存？"))) return; stopRec(); }
     P.playing = false; cancelAnimationFrame(P.raf); stopCam(); keepOn(false);
     $("prompter").classList.add("hidden");
+    if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function(){});
   }
   $("pClose").onclick = closePrompter;
   $("pPlay").onclick = function(){ P.playing = !P.playing; P.last = 0; applyP(); };
