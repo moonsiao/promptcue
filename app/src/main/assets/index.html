@@ -88,6 +88,8 @@ h1{font-size:26px;margin:4px 0 2px}
 #pbox{position:absolute;left:10px;right:10px;top:64px;border-radius:16px;background:rgba(0,0,0,.45);overflow:hidden;z-index:2}
 #pinner{padding:12px 16px 60vh;line-height:1.5;font-weight:600;white-space:pre-wrap;word-break:break-word;will-change:transform;text-shadow:0 1px 3px #000}
 #pbox.flip #pinner{transform-origin:center}
+#pinner span.dn{opacity:.4}
+#pinner span.cur{color:#ffd43b}
 #vmeter{position:absolute;top:0;left:0;height:3px;background:#3ddc84;width:0;transition:width .08s;z-index:3}
 #pline{position:absolute;left:0;right:0;height:2px;background:#ff5a4a99;top:30%;pointer-events:none}
 #pbox .resize{position:absolute;left:0;right:0;bottom:0;height:22px;display:flex;align-items:center;justify-content:center;background:linear-gradient(transparent,#0008);font-size:12px;color:#fffa}
@@ -278,9 +280,10 @@ h1{font-size:26px;margin:4px 0 2px}
   function saveNotes(){ localStorage.setItem("pc_notes", JSON.stringify(notes)); }
   function saveS(){ localStorage.setItem("pc_settings", JSON.stringify(S)); }
 
+  if(S.voice===true) S.voice = "vol";
   // ---------- language ----------
   if(!S.ui) S.ui = (navigator.language||"").toLowerCase().indexOf("zh")===0 ? "zh" : "en";
-  var EN = {"今天想说点什么？": "What do you want to say today?", "开口录音": "Record voice", "语音转文字": "Speech to text", "写口播稿": "Write script", "想到就开口，不用组织好语言。录音存在手机里，填了 Gemini key 会自动转成文字。": "Just start talking — no need to be polished. Recordings stay on your phone; with a Gemini key they're turned into text automatically.", "最近内容": "Recent", "查看全部": "See all", "笔记": "Notes", "🔍 搜索标题、正文或标签": "🔍 Search title, text or tags", "设置": "Settings", "界面语言 Language": "Language 界面语言", "默认字号": "Default font size", "默认滚动速度": "Default scroll speed", "录像前倒数": "Countdown before recording", "不倒数": "None", "3 秒": "3 s", "5 秒": "5 s", "录像画质": "Video quality", "录像方向": "Video orientation", "竖屏 9:16（Shorts）": "Portrait 9:16 (Shorts)", "横屏 16:9（YouTube）": "Landscape 16:9 (YouTube)", "语音转文字语言": "Speech-to-text language", "中文（普通话）": "Chinese (Mandarin)", "粤语": "Cantonese", "✨ AI（Gemini）": "✨ AI (Gemini)", "录音转文字（华语、英文、马来语混着讲也可以）+ 整理成口播稿。key 只存在这台手机。": "Recording → text (mixed Mandarin / English / Malay is fine) + turn notes into a script. Your key stays on this phone.", "模型": "Model", "录完自动转文字": "Auto-transcribe after recording", "👉 免费申请 Gemini API key": "👉 Get a free Gemini API key", "测试": "Test", "备份": "Backup", "导出备份": "Export", "导入备份": "Import", "备份只含文字笔记（录音太大不放进去）。录好的视频在手机相册「Movies/PromptCue」。": "Backup contains text notes only (recordings are too big). Recorded videos are in your gallery under Movies/PromptCue.", "口播提词 PromptCue · 数据只存在这台手机": "PromptCue · your data stays on this phone", "记录": "Record", "标题": "Title", "#标签  用空格分开": "#tags  separated by spaces", "写下要讲的内容…\n\n小技巧：先录音或语音转文字，再改成自己的说话习惯。": "Write what you want to say…\n\nTip: record or dictate first, then edit it into your own way of talking.", "✨ AI 整理成口播稿": "✨ AI: turn into script", "补录音": "Add audio", "语音补充": "Dictate", "悬浮提词": "Float", "开始提词": "Prompt", "● 正在录音": "● Recording", "⏸ 暂停": "⏸ Pause", "▶ 继续": "▶ Resume", "Ⅱ 已暂停": "Ⅱ Paused", "■ 结束并保存": "■ Stop & save", "取消": "Cancel", "● 正在听… 说完按完成": "● Listening… tap Done when finished", "✓ 完成": "✓ Done", "相机未开启 · 只提词模式": "Camera off · prompt only", "🎤 跟声音": "🎤 Voice", "镜像字": "Mirror", "═ 拖动调整高度 ═": "═ drag to resize ═", "字号": "Size", "速度": "Speed", "回开头": "Top", "提词": "Play", "暂停": "Pause", "悬浮": "Float", "相机": "Camera", "口播稿": "Script", "素材": "Material", "灵感": "Idea", "工具": "Tool", "全部": "All", "⭐ 收藏": "⭐ Starred", "(无标题)": "(untitled)", "昨天": "Yesterday", "还没有内容。按上面的「开口录音」开始第一条吧。": "Nothing yet. Tap “Record voice” above to start.", "没有符合的笔记": "No matching notes", "录音": "Recording", "已转文字": "transcribed", "转文字": "Transcribe", "语音笔记": "Voice note", "开始说吧…": "Start talking…", "✅ 已存到相册：": "✅ Saved to gallery: ", "这台手机不支持录像：": "Recording not supported: ", "已存到 Download：": "Saved to Download: ", "导入完成：": "Imported: ", "删除这段录音？": "Delete this recording?", "删除这条笔记？": "Delete this note?", "正在录像，结束并保存？": "Recording — stop and save?", "找不到这段录音": "Recording not found", "无法播放": "Can't play", "此设备不支持录音": "Recording not supported on this device", "需要麦克风权限": "Microphone permission needed", "录音已保存": "Recording saved", "保存录音失败": "Failed to save recording", "已加入笔记": "Added to note", "这个浏览器不支持语音转文字，请用手机 Chrome 或安装 App 版": "This browser can't do speech-to-text. Use Chrome on your phone or the app.", "悬浮提词只在 Android App 版可用": "Floating prompter only works in the Android app", "稿子是空的": "The script is empty", "请允许「显示在其他应用上层」，然后再按一次": "Allow “Display over other apps”, then tap again", "悬浮提词已开启，正在打开相机…": "Floating prompter on — opening camera…", "相机没开，只提词模式": "Camera off — prompt only", "录像中不能切换": "Can't switch while recording", "先开相机才能录像": "Turn on the camera to record", "无法建立视频文件": "Couldn't create video file", "✅ 视频已下载": "✅ Video downloaded", "保存失败": "Save failed", "导出失败": "Export failed", "文件格式不对": "Wrong file format", "跟声音：你说话才滚，停下就停": "Voice mode: scrolls only while you speak", "已关闭跟声音，按固定速度滚": "Voice mode off — fixed speed", "先填 API key": "Enter an API key first", "测试中…": "Testing…", "✅ Gemini 连接成功": "✅ Gemini connected", "AI 没有回应": "AI returned nothing", "网络连不上": "Network error", "先在设置填 Gemini API key": "Add a Gemini API key in Settings first", "✨ 转文字中…": "✨ Transcribing…", "✅ 已转成文字": "✅ Transcribed", "先录音或写一些内容": "Record or write something first", "✨ AI 整理中…": "✨ AI working…", "✅ 口播稿已生成": "✅ Script created", "语音转文字 ": "Speech to text ", "粘贴稿子": "Paste script", "🎙 彩排": "🎙 Rehearse", "🪞 镜面": "🪞 Mirror", "彩排模式：只录声音。录完会自动转成你讲的口播稿，再换上来给你正式录。": "Rehearsal: records voice only. Afterwards it's turned into the script you actually said and loaded for the real take.", "镜面：文字左右反转，给提词器玻璃用。不用相机的话按 📷 关掉，字会变全屏": "Mirror: text flipped for teleprompter glass. Tap 📷 to turn off the camera for full-screen text", "录音中不能切换": "Can't switch while recording", "彩排模式：按红色键只录声音": "Rehearsal: red button records voice only", "正式模式：按红色键录像": "Final take: red button records video", "彩排录音已存。去设置填 Gemini key 才能自动变成口播稿": "Rehearsal saved. Add a Gemini key in Settings to turn it into a script", "✨ 正在把彩排变成口播稿…": "✨ Turning your rehearsal into a script…", "（彩排版）": " (rehearsed)", "✅ 已换成你彩排的口播稿，可以正式录了": "✅ Loaded your rehearsed script — ready for the real take", "✅ 彩排口播稿已生成": "✅ Rehearsed script created", "已粘贴": "Pasted", "剪贴板是空的，直接在这里长按粘贴": "Clipboard is empty — long-press here to paste"};
+  var EN = {"今天想说点什么？": "What do you want to say today?", "开口录音": "Record voice", "语音转文字": "Speech to text", "写口播稿": "Write script", "想到就开口，不用组织好语言。录音存在手机里，填了 Gemini key 会自动转成文字。": "Just start talking — no need to be polished. Recordings stay on your phone; with a Gemini key they're turned into text automatically.", "最近内容": "Recent", "查看全部": "See all", "笔记": "Notes", "🔍 搜索标题、正文或标签": "🔍 Search title, text or tags", "设置": "Settings", "界面语言 Language": "Language 界面语言", "默认字号": "Default font size", "默认滚动速度": "Default scroll speed", "录像前倒数": "Countdown before recording", "不倒数": "None", "3 秒": "3 s", "5 秒": "5 s", "录像画质": "Video quality", "录像方向": "Video orientation", "竖屏 9:16（Shorts）": "Portrait 9:16 (Shorts)", "横屏 16:9（YouTube）": "Landscape 16:9 (YouTube)", "语音转文字语言": "Speech-to-text language", "中文（普通话）": "Chinese (Mandarin)", "粤语": "Cantonese", "✨ AI（Gemini）": "✨ AI (Gemini)", "录音转文字（华语、英文、马来语混着讲也可以）+ 整理成口播稿。key 只存在这台手机。": "Recording → text (mixed Mandarin / English / Malay is fine) + turn notes into a script. Your key stays on this phone.", "模型": "Model", "录完自动转文字": "Auto-transcribe after recording", "👉 免费申请 Gemini API key": "👉 Get a free Gemini API key", "测试": "Test", "备份": "Backup", "导出备份": "Export", "导入备份": "Import", "备份只含文字笔记（录音太大不放进去）。录好的视频在手机相册「Movies/PromptCue」。": "Backup contains text notes only (recordings are too big). Recorded videos are in your gallery under Movies/PromptCue.", "口播提词 PromptCue · 数据只存在这台手机": "PromptCue · your data stays on this phone", "记录": "Record", "标题": "Title", "#标签  用空格分开": "#tags  separated by spaces", "写下要讲的内容…\n\n小技巧：先录音或语音转文字，再改成自己的说话习惯。": "Write what you want to say…\n\nTip: record or dictate first, then edit it into your own way of talking.", "✨ AI 整理成口播稿": "✨ AI: turn into script", "补录音": "Add audio", "语音补充": "Dictate", "悬浮提词": "Float", "开始提词": "Prompt", "● 正在录音": "● Recording", "⏸ 暂停": "⏸ Pause", "▶ 继续": "▶ Resume", "Ⅱ 已暂停": "Ⅱ Paused", "■ 结束并保存": "■ Stop & save", "取消": "Cancel", "● 正在听… 说完按完成": "● Listening… tap Done when finished", "✓ 完成": "✓ Done", "相机未开启 · 只提词模式": "Camera off · prompt only", "🎤 跟声音": "🎤 Voice", "镜像字": "Mirror", "═ 拖动调整高度 ═": "═ drag to resize ═", "字号": "Size", "速度": "Speed", "回开头": "Top", "提词": "Play", "暂停": "Pause", "悬浮": "Float", "相机": "Camera", "口播稿": "Script", "素材": "Material", "灵感": "Idea", "工具": "Tool", "全部": "All", "⭐ 收藏": "⭐ Starred", "(无标题)": "(untitled)", "昨天": "Yesterday", "还没有内容。按上面的「开口录音」开始第一条吧。": "Nothing yet. Tap “Record voice” above to start.", "没有符合的笔记": "No matching notes", "录音": "Recording", "已转文字": "transcribed", "转文字": "Transcribe", "语音笔记": "Voice note", "开始说吧…": "Start talking…", "✅ 已存到相册：": "✅ Saved to gallery: ", "这台手机不支持录像：": "Recording not supported: ", "已存到 Download：": "Saved to Download: ", "导入完成：": "Imported: ", "删除这段录音？": "Delete this recording?", "删除这条笔记？": "Delete this note?", "正在录像，结束并保存？": "Recording — stop and save?", "找不到这段录音": "Recording not found", "无法播放": "Can't play", "此设备不支持录音": "Recording not supported on this device", "需要麦克风权限": "Microphone permission needed", "录音已保存": "Recording saved", "保存录音失败": "Failed to save recording", "已加入笔记": "Added to note", "这个浏览器不支持语音转文字，请用手机 Chrome 或安装 App 版": "This browser can't do speech-to-text. Use Chrome on your phone or the app.", "悬浮提词只在 Android App 版可用": "Floating prompter only works in the Android app", "稿子是空的": "The script is empty", "请允许「显示在其他应用上层」，然后再按一次": "Allow “Display over other apps”, then tap again", "悬浮提词已开启，正在打开相机…": "Floating prompter on — opening camera…", "相机没开，只提词模式": "Camera off — prompt only", "录像中不能切换": "Can't switch while recording", "先开相机才能录像": "Turn on the camera to record", "无法建立视频文件": "Couldn't create video file", "✅ 视频已下载": "✅ Video downloaded", "保存失败": "Save failed", "导出失败": "Export failed", "文件格式不对": "Wrong file format", "跟声音：你说话才滚，停下就停": "Voice mode: scrolls only while you speak", "已关闭跟声音，按固定速度滚": "Voice mode off — fixed speed", "先填 API key": "Enter an API key first", "测试中…": "Testing…", "✅ Gemini 连接成功": "✅ Gemini connected", "AI 没有回应": "AI returned nothing", "网络连不上": "Network error", "先在设置填 Gemini API key": "Add a Gemini API key in Settings first", "✨ 转文字中…": "✨ Transcribing…", "✅ 已转成文字": "✅ Transcribed", "先录音或写一些内容": "Record or write something first", "✨ AI 整理中…": "✨ AI working…", "✅ 口播稿已生成": "✅ Script created", "语音转文字 ": "Speech to text ", "粘贴稿子": "Paste script", "🎙 彩排": "🎙 Rehearse", "🪞 镜面": "🪞 Mirror", "彩排模式：只录声音。录完会自动转成你讲的口播稿，再换上来给你正式录。": "Rehearsal: records voice only. Afterwards it's turned into the script you actually said and loaded for the real take.", "镜面：文字左右反转，给提词器玻璃用。不用相机的话按 📷 关掉，字会变全屏": "Mirror: text flipped for teleprompter glass. Tap 📷 to turn off the camera for full-screen text", "录音中不能切换": "Can't switch while recording", "彩排模式：按红色键只录声音": "Rehearsal: red button records voice only", "正式模式：按红色键录像": "Final take: red button records video", "彩排录音已存。去设置填 Gemini key 才能自动变成口播稿": "Rehearsal saved. Add a Gemini key in Settings to turn it into a script", "✨ 正在把彩排变成口播稿…": "✨ Turning your rehearsal into a script…", "（彩排版）": " (rehearsed)", "✅ 已换成你彩排的口播稿，可以正式录了": "✅ Loaded your rehearsed script — ready for the real take", "✅ 彩排口播稿已生成": "✅ Rehearsed script created", "已粘贴": "Pasted", "剪贴板是空的，直接在这里长按粘贴": "Clipboard is empty — long-press here to paste", "🗣 跟字": "🗣 Words", "跟字：认出你讲到哪一句就滚到哪里（要网络）": "Follow words: scrolls to where you are reading (needs internet)", "彩排录音时用「跟声音」模式": "Rehearsal recording uses volume mode", "这个浏览器不支持跟字，请用手机 Chrome": "This browser can't follow words — use Chrome on your phone", "麦克风被相机占用：按 📷 关相机再试": "Mic is busy with the camera — tap 📷 to turn it off", "跟字要网络": "Follow-words needs internet"};
   function T(z){ return S.ui==="en" && EN[z] != null ? EN[z] : z; }
   function translateDom(){
     if(S.ui!=="en") return;
@@ -717,7 +720,7 @@ h1{font-size:26px;margin:4px 0 2px}
   function openPrompter(n){
     if(!(n.body||"").trim()){ toast("稿子是空的"); return; }
     P.note = n; P.off = 0; P.playing = false;
-    $("pinner").textContent = n.body;
+    setScript(n.body);
     $("prompter").classList.remove("hidden");
     $("pFloat").classList.toggle("hidden", !isApp);
     // web: go fullscreen so the browser bar doesn't show under the teleprompter glass
@@ -739,8 +742,9 @@ h1{font-size:26px;margin:4px 0 2px}
     $("pinner").style.transform = "translateY(" + (-P.off) + "px)" + (S.flip ? " scaleX(-1)" : "");
     $("pPlay").innerHTML = (P.playing ? "⏸" : "▶") + "<small>" + T(P.playing ? "暂停" : "提词") + "</small>";
     $("pFlip").style.background = S.flip ? "#3B5BDB" : "";
-    $("pVoice").style.background = S.voice ? "#2B8A3E" : "";
-    $("vmeter").classList.toggle("hidden", !S.voice);
+    $("pVoice").style.background = S.voice==="word" ? "#7048E8" : S.voice ? "#2B8A3E" : "";
+    $("pVoice").textContent = S.voice==="word" ? T("🗣 跟字") : T("🎤 跟声音");
+    $("vmeter").classList.toggle("hidden", S.voice!=="vol");
   }
   function maxOff(){ return Math.max(0, $("pinner").scrollHeight - $("pbox").clientHeight * 0.4); }
   function loop(t){
@@ -748,7 +752,12 @@ h1{font-size:26px;margin:4px 0 2px}
     if(P.playing){
       var dt = P.last ? (t - P.last)/1000 : 0;
       var f = 1;
-      if(S.voice && P.an){
+      if(S.voice==="word"){
+        // follow your words: glide to the line you are reading
+        var tgt = wordTarget();
+        if(tgt != null) P.off += (tgt - P.off) * Math.min(1, dt * 5);
+        f = 0;
+      } else if(S.voice && P.an){
         var talking = (performance.now() - P.loudAt) < 450;   // keep going briefly between words
         f = P.vf += ((talking ? 1 : 0) - P.vf) * Math.min(1, dt * 8);   // smooth start/stop
       }
@@ -759,6 +768,81 @@ h1{font-size:26px;margin:4px 0 2px}
     if(S.voice && P.an) listen();
     P.last = t; P.raf = requestAnimationFrame(loop);
   }
+  // ---------- follow-the-words (speech recognition + fuzzy matching) ----------
+  var W = {toks:[], pos:0, sr:null, on:false, spans:null, shown:-1};
+  var TOK = /[\u3400-\u9fff]|[A-Za-z0-9\u00C0-\u024F']+/g;
+  function setScript(text){
+    var html = "", last = 0, k = 0, m; W.toks = []; W.pos = 0; W.shown = -1; TOK.lastIndex = 0;
+    while((m = TOK.exec(text))){
+      html += esc(text.slice(last, m.index)) + '<span data-k="' + k + '">' + esc(m[0]) + "</span>";
+      W.toks.push(m[0].toLowerCase()); k++; last = m.index + m[0].length;
+    }
+    html += esc(text.slice(last));
+    $("pinner").innerHTML = html; W.spans = $("pinner").querySelectorAll("span[data-k]");
+  }
+  function heard(text){ return ((text||"").toLowerCase().match(TOK) || []); }
+  // longest common subsequence length (small arrays)
+  function lcs(a, b){
+    var prev = new Array(b.length+1).fill(0), cur;
+    for(var i=1;i<=a.length;i++){ cur = [0];
+      for(var j=1;j<=b.length;j++) cur[j] = a[i-1]===b[j-1] ? prev[j-1]+1 : Math.max(prev[j], cur[j-1]);
+      prev = cur; }
+    return prev[b.length];
+  }
+  function follow(text){
+    var R = heard(text).slice(-10); if(R.length < 2) return;
+    var N = W.toks.length, best = -1, bestScore = 0, win = Math.round(R.length * 1.6) + 2;
+    var from = Math.max(R.length, W.pos - 6), to = Math.min(N, W.pos + 60);
+    for(var e = from; e <= to; e++){
+      var sc = lcs(R, W.toks.slice(Math.max(0, e - win), e));
+      // the last word you said should sit near the end of the window
+      if(W.toks[e-1]===R[R.length-1] || W.toks[e-2]===R[R.length-1]) sc += 0.5;
+      sc -= Math.abs(e - W.pos) * 0.002;   // prefer staying close to where you are
+      if(sc > bestScore){ bestScore = sc; best = e; }
+    }
+    if(best > 0 && bestScore >= Math.max(2, R.length * 0.45) && best >= W.pos - 3){ W.pos = best; markRead(); }
+  }
+  function markRead(){
+    if(!W.spans) return;
+    var a = Math.min(W.shown, W.pos), b = Math.max(W.shown, W.pos);
+    if(W.shown < 0){ a = 0; b = W.spans.length; }
+    for(var i = Math.max(0,a); i < Math.min(b, W.spans.length); i++) W.spans[i].classList.toggle("dn", i < W.pos);
+    var c = $("pinner").querySelector("span.cur"); if(c) c.classList.remove("cur");
+    if(W.spans[W.pos]) W.spans[W.pos].classList.add("cur");
+    W.shown = W.pos;
+  }
+  function wordTarget(){
+    var sp = W.spans && W.spans[Math.min(W.pos, W.spans.length-1)]; if(!sp) return null;
+    return Math.max(0, Math.min(maxOff(), sp.offsetTop - $("pbox").clientHeight * 0.3 + 4));
+  }
+  function startWords(){
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){ toast("这个浏览器不支持跟字，请用手机 Chrome"); return; }
+    if(W.on) return; W.on = true; stopListen();
+    // free the mic for the recognizer when we only held it for the volume meter
+    if(P.stream && !P.stream.getVideoTracks().length){ P.stream.getTracks().forEach(function(t){ t.stop(); }); P.stream = null; }
+    var sr = new SR(); W.sr = sr; sr.lang = S.lang || "zh-CN"; sr.continuous = true; sr.interimResults = true;
+    sr.onresult = function(e){
+      var t = ""; for(var i = Math.max(0, e.results.length - 3); i < e.results.length; i++) t += e.results[i][0].transcript;
+      follow(t);
+    };
+    sr.onerror = function(e){
+      if(e.error==="not-allowed"){ toast("需要麦克风权限"); W.on = false; }
+      else if(e.error==="audio-capture"){ toast("麦克风被相机占用：按 📷 关相机再试"); W.on = false; }
+      else if(e.error==="network"){ toast("跟字要网络"); }
+    };
+    sr.onend = function(){ if(W.on && W.sr===sr){ try{ sr.start(); }catch(_){} } };
+    try{ sr.start(); }catch(_){}
+  }
+  function stopWords(){
+    W.on = false; if(W.sr){ try{ W.sr.abort(); }catch(_){} W.sr = null; }
+    if(S.voice==="vol" && !P.an && !$("prompter").classList.contains("hidden")){
+      if(P.stream) startListen(P.stream);
+      else if(navigator.mediaDevices) navigator.mediaDevices.getUserMedia({audio:true}).then(function(a){ P.stream = a; startListen(a); applyP(); }).catch(function(){});
+    }
+  }
+  function syncWords(){ if(S.voice==="word" && P.playing) startWords(); else stopWords(); }
+
   function startCam(){
     stopCam();
     if(!navigator.mediaDevices){ $("nocam").classList.remove("hidden"); return; }
@@ -800,13 +884,13 @@ h1{font-size:26px;margin:4px 0 2px}
   function stopCam(){ stopListen(); if(P.stream){ P.stream.getTracks().forEach(function(t){ t.stop(); }); P.stream = null; } $("cam").srcObject = null; }
   function closePrompter(){
     if(P.mr){ if(!confirm(T("正在录像，结束并保存？"))) return; stopRec(); }
-    P.playing = false; cancelAnimationFrame(P.raf); stopCam(); keepOn(false);
+    P.playing = false; stopWords(); cancelAnimationFrame(P.raf); stopCam(); keepOn(false);
     $("prompter").classList.add("hidden");
     if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function(){});
   }
   $("pClose").onclick = closePrompter;
-  $("pPlay").onclick = function(){ P.playing = !P.playing; P.last = 0; applyP(); };
-  $("pTop").onclick = function(){ P.off = 0; applyP(); };
+  $("pPlay").onclick = function(){ P.playing = !P.playing; P.last = 0; applyP(); syncWords(); };
+  $("pTop").onclick = function(){ P.off = 0; W.pos = 0; markRead(); applyP(); };
   $("fMinus").onclick = function(){ S.font = Math.max(16, S.font-4); saveS(); applyP(); };
   $("fPlus").onclick = function(){ S.font = Math.min(120, S.font+4); saveS(); applyP(); };
   $("sMinus").onclick = function(){ S.speed = Math.max(1, S.speed-4); saveS(); applyP(); };
@@ -823,8 +907,11 @@ h1{font-size:26px;margin:4px 0 2px}
   $("pSwitch").onclick = function(){ if(P.mr){ toast("录像中不能切换"); return; } S.facing = S.facing==="user" ? "environment" : "user"; saveS(); startCam(); };
   $("pCam").onclick = function(){ if(P.mr) return; if(P.stream && P.stream.getVideoTracks().length){ stopCam(); $("nocam").classList.remove("hidden"); applyP(); navigator.mediaDevices.getUserMedia({audio:true}).then(function(a){ P.stream = a; startListen(a); applyP(); }).catch(function(){}); } else startCam(); };
   $("pVoice").onclick = function(){
-    S.voice = !S.voice; saveS(); applyP();
-    toast(S.voice ? "跟声音：你说话才滚，停下就停" : "已关闭跟声音，按固定速度滚");
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    S.voice = !S.voice ? "vol" : (S.voice==="vol" && SR) ? "word" : false;
+    saveS(); stopWords(); applyP();
+    if(S.voice==="word" && P.playing) startWords();
+    toast(S.voice==="word" ? "跟字：认出你讲到哪一句就滚到哪里（要网络）" : S.voice ? "跟声音：你说话才滚，停下就停" : "已关闭跟声音，按固定速度滚");
   };
   $("pFloat").onclick = function(){ var t = P.note.body; closePrompter(); startFloat(t); };
 
@@ -833,7 +920,7 @@ h1{font-size:26px;margin:4px 0 2px}
     var box = $("pbox"), sy = 0, so = 0, moved = false;
     box.addEventListener("pointerdown", function(e){ if(e.target.id==="pResize") return; sy = e.clientY; so = P.off; moved = false; box.setPointerCapture(e.pointerId); box._drag = true; });
     box.addEventListener("pointermove", function(e){ if(!box._drag) return; var d = sy - e.clientY; if(Math.abs(d)>6) moved = true; if(moved){ P.off = Math.min(maxOff(), Math.max(0, so + d)); applyP(); } });
-    box.addEventListener("pointerup", function(){ if(!box._drag) return; box._drag = false; if(!moved){ P.playing = !P.playing; P.last = 0; applyP(); } });
+    box.addEventListener("pointerup", function(){ if(!box._drag) return; box._drag = false; if(!moved){ P.playing = !P.playing; P.last = 0; applyP(); syncWords(); } });
     var rz = $("pResize"), rs = 0, rh = 0;
     rz.addEventListener("pointerdown", function(e){ e.stopPropagation(); rs = e.clientY; rh = box.clientHeight; rz.setPointerCapture(e.pointerId); rz._d = true; });
     rz.addEventListener("pointermove", function(e){ if(!rz._d) return; var h = Math.min(window.innerHeight*0.8, Math.max(100, rh + e.clientY - rs)); S.boxH = h / window.innerHeight; box.style.height = h + "px"; });
@@ -891,6 +978,7 @@ h1{font-size:26px;margin:4px 0 2px}
   }
   // ---- rehearsal: record voice only, then turn it into the script you actually said ----
   function beginRehearsal(){
+    if(S.voice==="word"){ S.voice = "vol"; saveS(); stopWords(); applyP(); toast("彩排录音时用「跟声音」模式"); }
     var aud = new MediaStream(P.stream.getAudioTracks()), mime = "";
     ["audio/webm;codecs=opus","audio/mp4","audio/webm"].some(function(m){ if(MediaRecorder.isTypeSupported(m)){ mime = m; return true; } });
     var mr; try{ mr = new MediaRecorder(aud, mime ? {mimeType:mime} : undefined); }catch(e){ toast("此设备不支持录音"); return; }
@@ -924,7 +1012,7 @@ h1{font-size:26px;margin:4px 0 2px}
       n.body = text; n.tags = (note.tags||[]).slice(); saveNotes(); render();
       // swap the prompter to the rehearsed script, ready for the real take
       if(!$("prompter").classList.contains("hidden")){
-        P.note = n; $("pinner").textContent = n.body; P.off = 0; P.playing = false;
+        P.note = n; setScript(n.body); P.off = 0; P.playing = false; stopWords();
         S.rehearse = false; saveS(); applyP();
         tip.textContent = T("彩排模式：只录声音。录完会自动转成你讲的口播稿，再换上来给你正式录。");
         toast("✅ 已换成你彩排的口播稿，可以正式录了");
