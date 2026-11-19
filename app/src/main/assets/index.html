@@ -818,24 +818,38 @@ h1{font-size:26px;margin:4px 0 2px}
   function startWords(){
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if(!SR){ toast("这个浏览器不支持跟字，请用手机 Chrome"); return; }
-    if(W.on) return; W.on = true; stopListen();
+    if(W.on) return; W.on = true; W.fails = 0; stopListen();
     // free the mic for the recognizer when we only held it for the volume meter
     if(P.stream && !P.stream.getVideoTracks().length){ P.stream.getTracks().forEach(function(t){ t.stop(); }); P.stream = null; }
-    var sr = new SR(); W.sr = sr; sr.lang = S.lang || "zh-CN"; sr.continuous = true; sr.interimResults = true;
+    spawnSR();
+    // phones end recognition after a pause: keep a watchdog that brings it back
+    clearInterval(W.dog);
+    W.dog = setInterval(function(){ if(W.on && !W.live && Date.now() - W.spawnAt > 1500) spawnSR(); }, 1000);
+  }
+  // a fresh recognizer each time (re-starting the old one is unreliable on Android)
+  function spawnSR(){
+    if(!W.on) return;
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(W.sr){ var old = W.sr; W.sr = null; old.onend = old.onresult = old.onerror = null; try{ old.abort(); }catch(_){} }
+    var sr = new SR(); W.sr = sr; W.live = true; W.spawnAt = Date.now();
+    sr.lang = S.lang || "zh-CN"; sr.continuous = true; sr.interimResults = true; sr.maxAlternatives = 1;
     sr.onresult = function(e){
+      W.fails = 0;
       var t = ""; for(var i = Math.max(0, e.results.length - 3); i < e.results.length; i++) t += e.results[i][0].transcript;
       follow(t);
     };
     sr.onerror = function(e){
-      if(e.error==="not-allowed"){ toast("需要麦克风权限"); W.on = false; }
+      if(e.error==="not-allowed" || e.error==="service-not-allowed"){ toast("需要麦克风权限"); W.on = false; }
       else if(e.error==="audio-capture"){ toast("麦克风被相机占用：按 📷 关相机再试"); W.on = false; }
-      else if(e.error==="network"){ toast("跟字要网络"); }
+      else if(e.error==="network"){ if(++W.fails === 3) toast("跟字要网络"); }
+      // "no-speech" / "aborted" after a pause are normal: onend restarts it
     };
-    sr.onend = function(){ if(W.on && W.sr===sr){ try{ sr.start(); }catch(_){} } };
-    try{ sr.start(); }catch(_){}
+    sr.onend = function(){ if(W.sr !== sr) return; W.live = false; if(W.on) setTimeout(spawnSR, 150); };
+    try{ sr.start(); }catch(_){ W.live = false; }
   }
   function stopWords(){
-    W.on = false; if(W.sr){ try{ W.sr.abort(); }catch(_){} W.sr = null; }
+    W.on = false; clearInterval(W.dog);
+    if(W.sr){ var o = W.sr; W.sr = null; o.onend = o.onresult = o.onerror = null; try{ o.abort(); }catch(_){} }
     if(S.voice==="vol" && !P.an && !$("prompter").classList.contains("hidden")){
       if(P.stream) startListen(P.stream);
       else if(navigator.mediaDevices) navigator.mediaDevices.getUserMedia({audio:true}).then(function(a){ P.stream = a; startListen(a); applyP(); }).catch(function(){});
@@ -951,7 +965,8 @@ h1{font-size:26px;margin:4px 0 2px}
     var opts = {videoBitsPerSecond: S.qual==="720" ? 5000000 : 10000000};
     if(mime) opts.mimeType = mime;
     var mr;
-    try{ mr = new MediaRecorder(P.stream, opts); }catch(e){ toast(T("这台手机不支持录像：") + e.message); return; }
+    var recStream = framedStream();
+    try{ mr = new MediaRecorder(recStream, opts); }catch(e){ toast(T("这台手机不支持录像：") + e.message); stopFrame(); return; }
     var type = (mr.mimeType || mime || "video/webm").split(";")[0];
     var ext = type.indexOf("mp4")>=0 ? "mp4" : "webm";
     var native = isApp && A.videoBegin;
@@ -1020,8 +1035,34 @@ h1{font-size:26px;margin:4px 0 2px}
     }).catch(function(e){ tip.classList.add("hidden"); toast("❌ " + e.message); });
   }
 
+  // Phones often hand the browser landscape frames even when held upright.
+  // Draw the camera onto a canvas of the chosen shape (centre crop, like the preview) and record that.
+  var F = {cv:null, raf:0};
+  function framedStream(){
+    var v = $("cam"), vw = v.videoWidth || 1280, vh = v.videoHeight || 720;
+    var portrait = S.orient === "portrait", ar = portrait ? 9/16 : 16/9;
+    var cw, ch; // crop of the source
+    if(vw / vh > ar){ ch = vh; cw = Math.round(vh * ar); } else { cw = vw; ch = Math.round(vw / ar); }
+    var maxL = S.qual === "720" ? 1280 : 1920, scale = Math.min(1, maxL / Math.max(cw, ch));
+    var ow = Math.round(cw * scale / 2) * 2, oh = Math.round(ch * scale / 2) * 2;
+    var cv = document.createElement("canvas"); cv.width = ow; cv.height = oh; var g = cv.getContext("2d");
+    F.cv = cv;
+    (function draw(){
+      if(F.cv !== cv) return;
+      var w = v.videoWidth || vw, h = v.videoHeight || vh, sw, sh;
+      if(w / h > ar){ sh = h; sw = h * ar; } else { sw = w; sh = w / ar; }
+      try{ g.drawImage(v, (w - sw)/2, (h - sh)/2, sw, sh, 0, 0, ow, oh); }catch(_){}
+      F.raf = requestAnimationFrame(draw);
+    })();
+    var out = cv.captureStream(30);
+    P.stream.getAudioTracks().forEach(function(t){ out.addTrack(t); });
+    return out;
+  }
+  function stopFrame(){ F.cv = null; cancelAnimationFrame(F.raf); }
+
   function stopRec(){
     if(!P.mr) return;
+    setTimeout(stopFrame, 1500);
     try{ P.mr.stop(); }catch(_){}
     P.mr = null; clearInterval(P.recTimer);
     $("recBtn").classList.remove("on"); $("recInfo").classList.add("hidden");
